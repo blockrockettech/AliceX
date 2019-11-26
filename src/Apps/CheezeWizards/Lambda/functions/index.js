@@ -1,5 +1,7 @@
 const functions = require('firebase-functions');
 const wizardNotificationService = require('./wizard-notification-service');
+const firestoreService = require('./firestore-service');
+const notificationService = require('./notification-service');
 
 exports.challengeNotifier = functions.firestore
     .document('wizards/network/{network}/{wizardId}/duel/{challengeId}')
@@ -47,5 +49,89 @@ exports.challengeNotifier = functions.firestore
         }
 
         console.log('**End of challenge notifier**');
+        return processor;
+    });
+
+exports.wizardPokeNotifier = functions.firestore
+    .document('wizards/network/{network}/{wizardId}/poke/{pokeId}')
+    .onWrite(async (change, context) => {
+        console.log('**Executing wizard poke notifier**');
+        const network = context.params.network;
+        const wizardId = context.params.wizardId;
+        const pokeId = context.params.pokeId;
+        console.log(`Context params: Network - ${network}, Wizard ID: ${wizardId}, pokeId: ${pokeId}`);
+
+        const document = change.after.exists ? change.after.data() : null;
+        const oldDocument = change.before.data();
+
+        // promise returned from the function
+        let processor = null;
+
+        if(!oldDocument) {
+            console.log('New poke received');
+
+            // Get the device messaging token (firebase messaging token)
+            const wizard = await firestoreService.getWizard(network, wizardId);
+            console.log('wizard', wizard);
+            if (!wizard || (wizard && !wizard.owner)) {
+                console.error(`Unable to retrieve wizard / owner data for wizard ID ${wizardId}. Exiting early...`);
+                return null;
+            }
+
+            const registrationToken = await firestoreService.getFirebaseDeviceMessagingToken(wizard.owner);
+            if (!registrationToken) {
+                console.error(`Unable to retrieve a firebase messaging token for ${wizard.owner}. Exiting early...`);
+                return null;
+            }
+
+            processor = notificationService.sendNotification(
+                registrationToken,
+                `Poke alert`,
+                "lol"
+            );
+        }
+
+        return processor;
+    });
+
+exports.kittiePokeNotifier = functions.firestore
+    .document('kitties/network/{network}/{kittieId}/poke/{pokeId}')
+    .onWrite(async (change, context) => {
+        console.log('**Executing kittie poke notifier**');
+        const network = context.params.network;
+        const kittieId = context.params.kittieId;
+        const pokeId = context.params.pokeId;
+        console.log(`Context params: Network - ${network}, kittieId: ${kittieId}, pokeId: ${pokeId}`);
+
+        const document = change.after.exists ? change.after.data() : null;
+        const oldDocument = change.before.data();
+
+        // promise returned from the function
+        let processor = null;
+
+        if(!oldDocument) {
+            console.log('New poke received');
+
+            // Get the device messaging token (firebase messaging token)
+            const kittie = await firestoreService.getKittie(network, kittieId);
+            console.log('kittie', kittie);
+            if (!kittie || (kittie && !kittie.owner)) {
+                console.error(`Unable to retrieve kittie / owner data for kittie ID ${kittieId}. Exiting early...`);
+                return null;
+            }
+
+            const registrationToken = await firestoreService.getFirebaseDeviceMessagingToken(kittie.owner);
+            if (!registrationToken) {
+                console.error(`Unable to retrieve a firebase messaging token for ${kittie.owner}. Exiting early...`);
+                return null;
+            }
+
+            processor = notificationService.sendNotification(
+                registrationToken,
+                `Poke alert`,
+                `${document.msg}`
+            );
+        }
+
         return processor;
     });

@@ -20,6 +20,21 @@ module.exports = new class FirestoreService {
             });
     }
 
+    async getKittie(network, id) {
+        return db
+            .collection('kitties')
+            .doc('network')
+            .collection(network)
+            .doc(id)
+            .get()
+            .then(snapshot => {
+                if(snapshot.exists) {
+                    return snapshot.data();
+                }
+                return null;
+            });
+    }
+
     async getFirebaseDeviceMessagingToken(ethAddress) {
         return db
             .collection('accounts')
