@@ -48,4 +48,17 @@ module.exports = new class FirestoreService {
                 return '';
             });
     }
+
+    async getAccount(ethAddress) {
+        return db
+            .collection('accounts')
+            .doc(ethAddress)
+            .get()
+            .then(snapshot => {
+                if(snapshot.exists) {
+                    return snapshot.data();
+                }
+                return '';
+            });
+    }
 };

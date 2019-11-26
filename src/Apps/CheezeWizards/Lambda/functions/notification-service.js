@@ -9,11 +9,11 @@ module.exports = new class NotificationService {
     sendNotification(registrationToken, title, body, data) {
         const payload = {
             token: registrationToken,
-            notification: {
+            data: {
                 title,
-                body
-            },
-            data
+                body,
+                ...data,
+            }
         };
         return messaging.send(payload);
     }

@@ -120,16 +120,76 @@ exports.kittiePokeNotifier = functions.firestore
                 return null;
             }
 
-            const registrationToken = await firestoreService.getFirebaseDeviceMessagingToken(kittie.owner);
+            const {firebaseMessagingToken} = await firestoreService.getAccount(kittie.owner);
+            const registrationToken = firebaseMessagingToken;
             if (!registrationToken) {
                 console.error(`Unable to retrieve a firebase messaging token for ${kittie.owner}. Exiting early...`);
                 return null;
             }
 
+            const {msg, from, stud} = document;
+            const fromIcon = (await firestoreService.getAccount(from)).icon;
             processor = notificationService.sendNotification(
                 registrationToken,
                 `Poke alert`,
-                `${document.msg}`
+                `${msg}`,
+                {
+                    kittieId,
+                    icon: fromIcon,
+                    fromAddress: from,
+                    stud
+                }
+            );
+        }
+
+        return processor;
+    });
+
+exports.kittieSwipeNotifier = functions.firestore
+    .document('kitties/network/{network}/{kittieId}/swipeRight/{pokeId}')
+    .onWrite(async (change, context) => {
+        console.log('**Executing kittie swipe notifier**');
+        const network = context.params.network;
+        const kittieId = context.params.kittieId;
+        const pokeId = context.params.pokeId;
+        console.log(`Context params: Network - ${network}, kittieId: ${kittieId}, swipeId: ${pokeId}`);
+
+        const document = change.after.exists ? change.after.data() : null;
+        const oldDocument = change.before.data();
+
+        // promise returned from the function
+        let processor = null;
+
+        if(!oldDocument) {
+            console.log('New swipe received');
+
+            // Get the device messaging token (firebase messaging token)
+            const kittie = await firestoreService.getKittie(network, kittieId);
+            console.log('kittie', kittie);
+            if (!kittie || (kittie && !kittie.owner)) {
+                console.error(`Unable to retrieve kittie / owner data for kittie ID ${kittieId}. Exiting early...`);
+                return null;
+            }
+
+            const {firebaseMessagingToken} = await firestoreService.getAccount(kittie.owner);
+            const registrationToken = firebaseMessagingToken;
+            if (!registrationToken) {
+                console.error(`Unable to retrieve a firebase messaging token for ${kittie.owner}. Exiting early...`);
+                return null;
+            }
+
+            const {msg, from, stud} = document;
+            const fromIcon = (await firestoreService.getAccount(from)).icon;
+            processor = notificationService.sendNotification(
+                registrationToken,
+                `[[${network}]] Someone has swiped right on your kitty (${kittieId})`,
+                `${msg}`,
+                {
+                    kittieId,
+                    icon: fromIcon,
+                    fromAddress: from,
+                    stud
+                }
             );
         }
 
